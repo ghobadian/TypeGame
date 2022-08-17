@@ -1,0 +1,3 @@
+/media/msgh/baka/study/4001/fundemental of programming/project/cmake-build-debug/CMakeFiles/project.dir
+/media/msgh/baka/study/4001/fundemental of programming/project/cmake-build-debug/CMakeFiles/edit_cache.dir
+/media/msgh/baka/study/4001/fundemental of programming/project/cmake-build-debug/CMakeFiles/rebuild_cache.dir

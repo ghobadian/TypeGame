@@ -1,0 +1,3 @@
+ToolSet: 1.0 (local)Options: 
+
+Options:-DCMAKE_MAKE_PROGRAM=/media/msgh/baka/programs/cLion/clion-2022.1.2/bin/ninja/linux/ninja
