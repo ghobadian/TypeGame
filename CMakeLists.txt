@@ -10,6 +10,5 @@ add_executable(project
         main/helper_windows.h
         "main/New Text Document.c"
         main/shashi.h
-        helper_windows.h
-        main_windows.c
-        shashi.h)
+        main.c
+        )
