@@ -64,18 +64,22 @@ void checkStoppingSpecialMode(int *is_special_mode, int *change_size, float *wav
 
 int sizeOfWord(const char *word);
 
+int userLost(int points, int highest_score, FILE *users, FILE *wordsFile);
+
+int userWon(int points, int highest_score, FILE *users, int difficulty, FILE *wordsFile);
+
 void changing_buffer() {                        //deleting first word by moving rest of the words one step back
-    for (int i = 0; buffer[i][0] != 0; i++)
-        strcpy(buffer[i], buffer[i + 1]);
-    if (buffer[0][0] == 0) {
+    for (int i = 0; words[i][0] != 0; i++)
+        strcpy(words[i], words[i + 1]);
+    if (words[0][0] == 0) {
         wave++;
         changeWaveAllowed = 1;
     }
 }
 
-void loadNewWordsFromFile(FILE *words) {
+void loadNewWordsFromFile(FILE *wordsFile) {
     for (int i = 0; i < word_in_wave; i++)
-        fscanf(words, "%s", buffer[i]);
+        fscanf(words, "%s", words[i]);
 }
 
 int findWordType(char word[]) {
@@ -113,7 +117,7 @@ bool wordHasUnderScore(char word[]) {
 
 int main() {
     reset();
-    buffer[11][0] = 0;
+//    words[10][0] = 0;
     int points = 0;
     int is_special_mode = 0;
     int change_size = 0;
@@ -147,8 +151,8 @@ int main() {
 
     clearWindow();
 
-    FILE *words = fopen("../words.txt", "r");                        //getting words from file
-    loadNewWordsFromFile(words);
+    FILE *wordsFile = fopen("../words.txt", "r");                        //getting words from file
+    loadNewWordsFromFile(wordsFile);
 
     pthread_t thread_id = start_listening(my_callback_on_key_arrival);
 
@@ -163,16 +167,10 @@ int main() {
     for (n = 0; n < 1000; n++) {                            //new word coming from above
         checkUserLostALife(height, &user_lives, &n);
         if (user_lives == 0) {
-            printUserLostMessage(points, highest_score, users);
-            closeFiles(users, words);
-            sleep(5);
-            return 0;
+            return userLost(points, highest_score, users, wordsFile);
         }
         if (wave_time_span < 1) {
-            printUserWonMessage(points, highest_score, users, difficulty);
-            closeFiles(users, words);
-            sleep(5);
-            return 0;
+            return userWon(points, highest_score, users, difficulty, wordsFile);
         }
         checkWaveChanged(time_span_decreasing_percentage, words, hidden_word, &wave_time_span, &n);
         checkStoppingSpecialMode(&is_special_mode, &change_size, &wave_time_span);
@@ -180,7 +178,7 @@ int main() {
 
         clock_t start_t = clock();//using clock() to let other words move forward if time is up
         clock_t end_t = clock();
-        while (end_t - start_t < wave_time_span * 1000 && buffer[0][0] != 0) {
+        while (end_t - start_t < wave_time_span * 1000 && strcmp(&words[0], "") != 0) {
             printingEmptyLayout(width, height);
             printGameDetails(points, highest_score, width, height, user_lives);
             checkStartingFreezeMode(&wave_time_span, &freeze);
@@ -192,6 +190,20 @@ int main() {
         }
     }
     pthread_join(thread_id, NULL);
+    return 0;
+}
+
+int userWon(int points, int highest_score, FILE *users, int difficulty, FILE *wordsFile) {
+    printUserWonMessage(points, highest_score, users, difficulty);
+    closeFiles(users, wordsFile);
+    sleep(5);
+    return 0;
+}
+
+int userLost(int points, int highest_score, FILE *users, FILE *wordsFile) {
+    printUserLostMessage(points, highest_score, users);
+    closeFiles(users, wordsFile);
+    sleep(5);
     return 0;
 }
 
@@ -210,32 +222,31 @@ void checkStoppingFreezeMode(float *wave_time_span, int *freeze) {
 
 void printFloatingPoints(int change_size, float wave_time_span, int width, int height, int *hidden_word, int counter,
                          clock_t start_t, clock_t end_t, int *points, int *is_special_mode, int *n, int *freeze) {
-    for (int nth_word = (*n); nth_word >= 0; nth_word--) {        //printing floating words
+    for (int wordIndex = (*n); wordIndex >= 0; wordIndex--) {
         int size;
         if (change_size)        //related to special mode
             size = 3;
         else
-            size = strlen(buffer[nth_word]);    //size of each word
+            size = strlen(words[wordIndex]);    //size of each word
         int starting_position = (width - 1 - size) / 2;
-        gotoXY(starting_position, (*n) - nth_word);        //used for center alignment
+        gotoXY(starting_position, (*n) - wordIndex);        //used for center alignment
 
-        if (nth_word == 0) {
+        if (wordIndex == 0) {
             while (counter != size && end_t - start_t < wave_time_span * 1000 &&
-                   buffer[0][0] != 0) {            //printing the front word that its letters
-                if (buffer[nth_word][counter] ==
+                   words[0][0] != 0) {            //printing the front word that its letters
+                if (words[wordIndex][counter] ==
                     entered_char)                                        //should become red
                     counter++;
-                if (buffer[nth_word][counter] == buffer[nth_word][counter - 1] ||
-                    buffer[nth_word][counter - 1] == buffer[nth_word + 1][0])    //double-skip
+                if (words[wordIndex][counter] == words[wordIndex][counter - 1] ||
+                    words[wordIndex][counter - 1] == words[wordIndex + 1][0])    //double-skip
                     entered_char = '+';                                                                                                //problem
-                for (int j = 0;
-                     j < counter; j++) {            //printing alphabets that have already been pressed in red
-                    char currentChar = buffer[nth_word][j];
+                for (int j = 0;j < counter; j++) {            //printing alphabets that have already been pressed in red
+                    char currentChar = words[wordIndex][j];
                     printInRed(currentChar);
                 }
                 for (int last = counter;
                      last < size; last++)    //printing alphabets that haven't been press yet in white
-                    printf("%c", buffer[nth_word][last]);
+                    printf("%c", words[wordIndex][last]);
                 gotoXY(starting_position, (*n));
 
                 struct timespec remaining, request = {0, 50000000};
@@ -244,12 +255,12 @@ void printFloatingPoints(int change_size, float wave_time_span, int width, int h
                 end_t = clock();
             }
             if (counter == size) {
-                (*points) += findWordType(buffer[0]);    //giving points based on difficulty of the word that is typed
-                if (findWordType(buffer[0]) == 0)        //checking for freeze mode
+                (*points) += findWordType(words[0]);    //giving points based on difficulty of the word that is typed
+                if (findWordType(words[0]) == 0)        //checking for freeze mode
                     (*freeze) = 1;
                 if (hidden_word[0] == 0 || hidden_word[1] == 0 || hidden_word[2] == 0)
                     (*points)++;                    //giving extra point for "kalamateh mobham"
-                if ((*n) > height - 4 && (*is_special_mode) == 0 && findWordType(buffer[0]) == 3)
+                if ((*n) > height - 4 && (*is_special_mode) == 0 && findWordType(words[0]) == 3)
                     (*is_special_mode) = 1;        //checking for special mode
                 changing_buffer();
                 for (int i = 0; i < 3; i++)
@@ -259,26 +270,26 @@ void printFloatingPoints(int change_size, float wave_time_span, int width, int h
             }
             break;
         } else {
-            if (nth_word == hidden_word[0] || nth_word == hidden_word[1] || nth_word == hidden_word[2]) {
-                gotoXY(1, (*n) - nth_word);            //not showing the "mobham" words
+            if (wordIndex == hidden_word[0] || wordIndex == hidden_word[1] || wordIndex == hidden_word[2]) {
+                gotoXY(1, (*n) - wordIndex);            //not showing the "mobham" words
                 for (int i = 0; i < width - 1; i++)
                     printf("*");
-            } else if (strlen(buffer[nth_word]) >= 3)
+            } else if (strlen(words[wordIndex]) >= 3)
                 for (int alphabet = 0; alphabet < size; alphabet++)        //printing other words in white
-                    printf("%c", buffer[nth_word][alphabet]);
+                    printf("%c", words[wordIndex][alphabet]);
         }
     }
 }
 
 void checkStartingFreezeMode(float *wave_time_span, int *freeze) {
-    if ((*freeze) == 1) {                //freeze mode is on
+    if ((*freeze) == 1) {
         (*wave_time_span) *= 3;
         (*freeze) = 2;
     }
 }
 
 void checkStartingSpecialMode(int *is_special_mode, int *change_size, float *wave_time_span) {
-    if ((*is_special_mode) == 1) {        //special mode is on
+    if ((*is_special_mode) == 1) {
         (*wave_time_span) *= 2;
         (*is_special_mode) = 2;
         (*change_size) = 1;
@@ -286,14 +297,14 @@ void checkStartingSpecialMode(int *is_special_mode, int *change_size, float *wav
 }
 
 void printGameDetails(int points, int highest_score, int width, int height, int user_lives) {
-    gotoXY(0, height);                                    //printing points, wave number, user's lives,
-    for (int temp = 0; temp < width + 1; temp++)                    //user's highest score and ceiling
+    gotoXY(0, height);
+    for (int temp = 0; temp < width + 1; temp++)
         printf("#");
     printf("\n\npoints:%d", points);
     printf("\nwave:%d", wave + 1);
     printf("\nYour Lives: ");
     for (int i = 0; i < user_lives; i++)
-        printf("%c ", 3);
+        printf("%s ", "♥");
     printf("\nHighest Score: %d", highest_score);
 }
 
@@ -456,8 +467,8 @@ void green() {
     printf("%c[1;32", 27);
 }
 
-void closeFiles(FILE *users, FILE *words) {
-    fclose(words);
+void closeFiles(FILE *users, FILE *wordsFile) {
+    fclose(wordsFile);
     fclose(users);
 }
 
